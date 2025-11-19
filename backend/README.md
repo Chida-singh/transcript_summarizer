@@ -1,14 +1,24 @@
 # Transcript Summarizer - Backend API
 
-A Node.js/Express backend API for fetching and processing YouTube video transcripts.
+A Node.js/Express backend API for fetching and processing YouTube video transcripts using YouTube's internal API.
 
 ## Features
 
-- ✅ Fetch transcripts from YouTube videos
+- ✅ Fetch transcripts from YouTube videos (no API key needed!)
 - ✅ Extract video ID from various YouTube URL formats
 - ✅ Structured transcript data with timestamps
 - ✅ Comprehensive error handling
 - ✅ CORS enabled for frontend integration
+- ✅ Uses YouTubei.js - YouTube's internal API wrapper
+
+## How It Works
+
+This backend uses **youtubei.js** library which accesses YouTube's internal API (the same API that the YouTube website uses). This means:
+
+- ❌ **NO YouTube API key required**
+- ✅ Works with any video that has captions/transcripts enabled
+- ✅ More reliable than scraping methods
+- ✅ Accesses the same data YouTube's website uses
 
 ## Installation
 
@@ -101,7 +111,7 @@ Returns server status.
 
 - **express** - Web framework
 - **cors** - CORS middleware
-- **youtube-transcript** - YouTube transcript fetcher
+- **youtubei.js** - YouTube's internal API wrapper (no API key needed!)
 - **dotenv** - Environment variable management
 
 ## Future Enhancements

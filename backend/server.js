@@ -1,7 +1,7 @@
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
-import { YoutubeTranscript } from 'youtube-transcript';
+import { Innertube } from 'youtubei.js';
 
 dotenv.config();
 
@@ -37,8 +37,10 @@ app.get('/', (req, res) => {
     message: 'Transcript Summarizer API',
     version: '1.0.0',
     endpoints: {
-      '/api/transcript': 'POST - Fetch transcript from YouTube URL'
-    }
+      '/api/transcript': 'POST - Fetch transcript from YouTube URL',
+      '/api/check': 'POST - Check if video has transcripts available'
+    },
+    info: 'Videos must have captions/subtitles enabled to fetch transcripts'
   });
 });
 
@@ -63,32 +65,59 @@ app.post('/api/transcript', async (req, res) => {
       });
     }
 
-    // Fetch transcript
-    const transcriptData = await YoutubeTranscript.fetchTranscript(videoId);
+    console.log(`Fetching transcript for video: ${videoId}`);
 
-    if (!transcriptData || transcriptData.length === 0) {
+    // Initialize Innertube
+    const youtube = await Innertube.create();
+    
+    // Get video info
+    const info = await youtube.getInfo(videoId);
+    
+    // Get transcript
+    const transcriptData = await info.getTranscript();
+    
+    if (!transcriptData || !transcriptData.transcript || !transcriptData.transcript.content) {
       return res.status(404).json({
         error: 'Transcript not found',
-        message: 'No transcript available for this video'
+        message: 'No transcript/captions available for this video. Make sure the video has captions enabled.'
       });
     }
 
-    // Format transcript
-    const fullTranscript = transcriptData
-      .map(item => item.text)
-      .join(' ');
+    // Extract transcript segments from the proper structure
+    const transcriptContent = transcriptData.transcript.content;
+    const segmentList = transcriptContent.body;
+    
+    if (!segmentList || !segmentList.initial_segments) {
+      return res.status(404).json({
+        error: 'Transcript not found',
+        message: 'No transcript segments found for this video'
+      });
+    }
 
-    const formattedTranscript = transcriptData.map((item, index) => ({
-      index: index + 1,
-      timestamp: item.offset,
-      duration: item.duration,
-      text: item.text
-    }));
+    const segments = segmentList.initial_segments;
+
+    // Format transcript
+    const formattedTranscript = segments.map((segment, index) => {
+      // Extract text from the Text object
+      const text = segment.snippet.toString();
+      return {
+        index: index + 1,
+        timestamp: parseInt(segment.start_ms),
+        duration: parseInt(segment.end_ms) - parseInt(segment.start_ms),
+        text: text
+      };
+    });
+
+    const fullTranscript = formattedTranscript
+      .map(item => item.text)
+      .join(' ')
+      .trim();
 
     res.json({
       success: true,
       videoId,
       url,
+      videoTitle: info.basic_info.title,
       transcript: {
         full: fullTranscript,
         segments: formattedTranscript,
@@ -98,25 +127,85 @@ app.post('/api/transcript', async (req, res) => {
 
   } catch (error) {
     console.error('Error fetching transcript:', error);
+    console.error('Error details:', error.message);
 
     // Handle specific errors
-    if (error.message.includes('Transcript is disabled')) {
+    if (error.message.includes('Transcript is disabled') || error.message.includes('disabled')) {
       return res.status(403).json({
         error: 'Transcript disabled',
-        message: 'Transcripts are disabled for this video'
+        message: 'Transcripts/captions are disabled for this video. Please try a video with captions enabled.'
       });
     }
 
-    if (error.message.includes('Could not find')) {
+    if (error.message.includes('Could not find') || error.message.includes('not available') || error.message.includes('No transcript')) {
       return res.status(404).json({
-        error: 'Video not found',
-        message: 'Could not find the video or transcript'
+        error: 'Transcript not available',
+        message: 'No transcript/captions found for this video. The video must have either manual captions or auto-generated captions enabled.'
+      });
+    }
+
+    if (error.message.includes('Too Many Requests') || error.message.includes('rate limit')) {
+      return res.status(429).json({
+        error: 'Rate limit exceeded',
+        message: 'Too many requests. Please wait a moment and try again.'
       });
     }
 
     res.status(500).json({
       error: 'Internal server error',
-      message: 'Failed to fetch transcript. Please try again later.'
+      message: `Failed to fetch transcript: ${error.message}`
+    });
+  }
+});
+
+// Check if transcript is available (without fetching full transcript)
+app.post('/api/check', async (req, res) => {
+  try {
+    const { url } = req.body;
+
+    if (!url) {
+      return res.status(400).json({
+        error: 'Missing required field',
+        message: 'Please provide a YouTube URL'
+      });
+    }
+
+    const videoId = extractVideoId(url);
+    
+    if (!videoId) {
+      return res.status(400).json({
+        error: 'Invalid URL',
+        message: 'Please provide a valid YouTube URL'
+      });
+    }
+
+    // Initialize Innertube and check for transcript
+    const youtube = await Innertube.create();
+    const info = await youtube.getInfo(videoId);
+    const transcriptData = await info.getTranscript();
+
+    const hasTranscript = transcriptData && transcriptData.transcript && transcriptData.transcript.content;
+    let segmentCount = 0;
+    
+    if (hasTranscript) {
+      const segmentList = transcriptData.transcript.content.body;
+      segmentCount = segmentList && segmentList.initial_segments ? segmentList.initial_segments.length : 0;
+    }
+
+    res.json({
+      success: true,
+      videoId,
+      hasTranscript,
+      segmentCount,
+      videoTitle: info.basic_info.title
+    });
+
+  } catch (error) {
+    res.json({
+      success: false,
+      hasTranscript: false,
+      error: error.message,
+      message: 'No transcript available for this video'
     });
   }
 });

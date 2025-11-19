@@ -56,6 +56,7 @@ function App() {
       <header className="app-header">
         <h1>Transcript Summarizer</h1>
         <p className="subtitle">Paste a video link to extract and analyze its transcript</p>
+        <p className="note">ℹ️ Note: Video must have captions/subtitles enabled</p>
       </header>
 
       <main className="main-content">
