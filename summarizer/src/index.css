@@ -1,0 +1,64 @@
+:root {
+  font-family: 'Inter', system-ui, Avenir, Helvetica, Arial, sans-serif;
+  line-height: 1.5;
+  font-weight: 400;
+
+  color-scheme: light dark;
+  color: rgba(255, 255, 255, 0.87);
+  background-color: #242424;
+
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100vh;
+}
+
+#root {
+  width: 100%;
+  min-height: 100vh;
+}
+
+@media (prefers-color-scheme: light) {
+  :root {
+    color: #213547;
+    background-color: #ffffff;
+  }
+  
+  .link-input {
+    background: rgba(0, 0, 0, 0.03);
+    color: #213547;
+  }
+  
+  .link-input:focus {
+    background: rgba(0, 0, 0, 0.05);
+  }
+  
+  .link-input::placeholder {
+    color: #999;
+  }
+  
+  .transcript-content {
+    color: rgba(0, 0, 0, 0.87);
+  }
+  
+  .clear-btn {
+    color: #555;
+  }
+  
+  .clear-btn:hover:not(:disabled) {
+    color: #213547;
+    background: rgba(0, 0, 0, 0.05);
+  }
+}
