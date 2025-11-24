@@ -87,6 +87,9 @@ def clean_transcript(transcript_data):
         # Remove extra whitespace
         full_text = re.sub(r'\s+', ' ', full_text).strip()
         
+        # Remove conversation markers (>>)
+        full_text = re.sub(r'>>\s*', '', full_text)
+        
         # Remove [Music], [Applause], etc.
         full_text = re.sub(r'\[.*?\]', '', full_text)
         

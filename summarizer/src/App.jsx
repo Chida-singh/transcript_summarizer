@@ -5,6 +5,7 @@ function App() {
   const [videoLink, setVideoLink] = useState('')
   const [rawTranscript, setRawTranscript] = useState(null)
   const [cleanedTranscript, setCleanedTranscript] = useState(null)
+  const [segmentedTopics, setSegmentedTopics] = useState(null)
   const [glossTranscript, setGlossTranscript] = useState(null)
   const [loading, setLoading] = useState(false)
   const [currentStep, setCurrentStep] = useState('')
@@ -90,9 +91,45 @@ function App() {
     }
   }
 
-  // Step 3: Convert to Gloss
-  const handleConvertToGloss = async () => {
+  // Step 3: AI Topic Summarizer
+  const handleSegmentTopics = async () => {
     if (!cleanedTranscript) return
+
+    setLoading(true)
+    setError('')
+    setCurrentStep('AI is analyzing and summarizing topics...')
+
+    try {
+      const response = await fetch('http://localhost:3000/api/segment', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ 
+          transcript: cleanedTranscript
+        }),
+      })
+
+      const data = await response.json()
+
+      if (!response.ok || !data.success) {
+        throw new Error(data.error || 'Failed to summarize topics')
+      }
+
+      setSegmentedTopics(data)
+      setCurrentStep('')
+      
+    } catch (err) {
+      setError(err.message || 'Failed to summarize topics')
+      setCurrentStep('')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // Step 4: Convert to Gloss
+  const handleConvertToGloss = async () => {
+    if (!segmentedTopics) return
 
     setLoading(true)
     setError('')
@@ -104,7 +141,9 @@ function App() {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ text: cleanedTranscript.full_text }),
+        body: JSON.stringify({ 
+          topics: segmentedTopics.topics
+        }),
       })
 
       const data = await response.json()
@@ -113,7 +152,7 @@ function App() {
         throw new Error(data.error || 'Failed to convert to gloss')
       }
 
-      setGlossTranscript(data.gloss)
+      setGlossTranscript(data)
       setCurrentStep('')
       
     } catch (err) {
@@ -128,6 +167,7 @@ function App() {
     setVideoLink('')
     setRawTranscript(null)
     setCleanedTranscript(null)
+    setSegmentedTopics(null)
     setGlossTranscript(null)
     setError('')
     setCurrentStep('')
@@ -142,7 +182,7 @@ function App() {
       <header className="app-header">
         <h1>🎬 Transcript to Gloss Converter</h1>
         <p className="subtitle">
-          Step-by-step: Fetch → Clean → Convert to Gloss
+          Step-by-step: Fetch → Clean → AI Summarize → Convert to Gloss
         </p>
       </header>
 
@@ -250,11 +290,63 @@ function App() {
           </div>
         )}
 
-        {/* Step 3: Convert to Gloss */}
+        {/* Step 3: AI Topic Summarizer */}
         {cleanedTranscript && (
           <div className="step-section">
             <div className="step-header">
-              <h2>🔤 Step 3: Convert to Gloss Format</h2>
+              <h2>🤖 Step 3: AI Topic Summarizer</h2>
+              {segmentedTopics && <span className="step-status">✅ Complete</span>}
+            </div>
+            <div className="button-group">
+              <button 
+                onClick={handleSegmentTopics} 
+                className="action-btn primary"
+                disabled={loading || segmentedTopics}
+              >
+                {loading && currentStep.includes('analyzing') ? '⏳ AI Analyzing...' : '🤖 Summarize Topics'}
+              </button>
+            </div>
+
+            {segmentedTopics && (
+              <div className="result-box">
+                <div className="result-header">
+                  <h3>AI-Generated Topic Summary</h3>
+                  <div className="result-stats">
+                    <span className="stat-badge">{segmentedTopics.topics.length} topics</span>
+                    <span className="stat-badge">🤖 Powered by {segmentedTopics.method === 'gemini' ? 'Gemini AI' : 'ML'}</span>
+                  </div>
+                </div>
+                <div className="result-content topics-container">
+                  {segmentedTopics.topics.map((topic, index) => (
+                    <div key={index} className="topic-card">
+                      <div className="topic-header">
+                        <h4>📌 Topic {topic.topic_id}: {topic.topic_name}</h4>
+                        <button 
+                          className="copy-btn-small"
+                          onClick={() => copyToClipboard(topic.text)}
+                        >
+                          📋
+                        </button>
+                      </div>
+                      <div className="topic-keywords">
+                        {topic.keywords.slice(0, 5).map((keyword, i) => (
+                          <span key={i} className="keyword-tag">{keyword}</span>
+                        ))}
+                      </div>
+                      <p className="topic-text">{topic.text}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Step 4: Convert to Gloss */}
+        {segmentedTopics && (
+          <div className="step-section">
+            <div className="step-header">
+              <h2>🔤 Step 4: Convert to Gloss Format</h2>
               {glossTranscript && <span className="step-status">✅ Complete</span>}
             </div>
             <div className="button-group">
@@ -270,18 +362,36 @@ function App() {
             {glossTranscript && (
               <div className="result-box gloss-result">
                 <div className="result-header">
-                  <h3>Gloss Format</h3>
+                  <h3>Gloss Format (All Topics)</h3>
                   <div className="result-stats">
+                    <span className="stat-badge">{glossTranscript.gloss_topics.length} topics converted</span>
                     <button 
                       className="copy-btn-small"
-                      onClick={() => copyToClipboard(glossTranscript)}
+                      onClick={() => copyToClipboard(
+                        glossTranscript.gloss_topics
+                          .map(t => `=== ${t.topic_name} ===\n${t.gloss}`)
+                          .join('\n\n')
+                      )}
                     >
-                      📋 Copy
+                      📋 Copy All
                     </button>
                   </div>
                 </div>
                 <div className="result-content">
-                  <pre className="gloss-text">{glossTranscript}</pre>
+                  {glossTranscript.gloss_topics.map((topic, index) => (
+                    <div key={index} className="gloss-topic">
+                      <div className="gloss-topic-header">
+                        <h4>🔤 {topic.topic_name}</h4>
+                        <button 
+                          className="copy-btn-small"
+                          onClick={() => copyToClipboard(topic.gloss)}
+                        >
+                          📋
+                        </button>
+                      </div>
+                      <pre className="gloss-text">{topic.gloss}</pre>
+                    </div>
+                  ))}
                 </div>
               </div>
             )}

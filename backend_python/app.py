@@ -14,6 +14,13 @@ from transcript_cleaner import clean_transcript
 from topic_segmenter import segment_into_topics
 from gloss_converter import translate_to_gloss_format, convert_topics_to_gloss
 
+# Optional LLM segmentation
+try:
+    from llm_segmenter import segment_with_gemini, segment_with_openai, segment_with_claude
+    LLM_AVAILABLE = True
+except ImportError:
+    LLM_AVAILABLE = False
+
 load_dotenv()
 
 app = Flask(__name__)
@@ -126,12 +133,12 @@ def clean():
 @app.route('/api/segment', methods=['POST'])
 def segment():
     """
-    Segment cleaned text into topics.
+    Segment cleaned text into topics using AI.
     
     Request Body:
         {
-            "sentences": ["sentence 1", "sentence 2", ...],
-            "numTopics": 5  // optional, will auto-calculate if not provided
+            "transcript": {"sentences": [...], "full_text": "..."},
+            "numTopics": 5  // optional
         }
     
     Returns:
@@ -139,21 +146,44 @@ def segment():
     """
     try:
         data = request.get_json()
-        sentences = data.get('sentences', [])
+        transcript = data.get('transcript', {})
         num_topics = data.get('numTopics')
         
-        if not sentences:
+        # Extract sentences from transcript object
+        sentences = transcript.get('sentences', [])
+        full_text = transcript.get('full_text', '')
+        
+        if not sentences and not full_text:
             return jsonify({
                 'success': False,
-                'error': 'Sentences are required'
+                'error': 'Transcript data is required'
             }), 400
         
-        topics = segment_into_topics(sentences, num_topics)
+        # Use full_text if available, otherwise join sentences
+        if not full_text:
+            full_text = ' '.join(sentences)
+        
+        # Default: Use Gemini AI for intelligent segmentation
+        topics = None
+        method = 'gemini'
+        
+        if LLM_AVAILABLE:
+            print(f"Using Gemini AI to segment transcript ({len(full_text)} chars)...")
+            topics = segment_with_gemini(full_text, num_topics)
+            if topics:
+                print(f"Gemini successfully created {len(topics)} topics")
+        
+        # Fallback to ML if Gemini fails or unavailable
+        if topics is None:
+            print("Gemini unavailable, using ML-based segmentation")
+            method = 'ml'
+            topics = segment_into_topics(sentences if sentences else full_text.split('. '), num_topics)
         
         return jsonify({
             'success': True,
             'topics': topics,
-            'numTopics': len(topics)
+            'numTopics': len(topics),
+            'method': method
         }), 200
     
     except Exception as e:
@@ -217,7 +247,8 @@ def gloss():
             
             return jsonify({
                 'success': True,
-                'topics': topics_with_gloss
+                'gloss_topics': topics_with_gloss,
+                'topics': topics_with_gloss  # Keep for backwards compatibility
             }), 200
         
         else:
