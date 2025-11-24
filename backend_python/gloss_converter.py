@@ -9,6 +9,34 @@ gloss_model = None
 gloss_tokenizer = None
 
 
+class GlossTranslator:
+    """
+    Simple gloss translator that converts English text to ASL gloss notation.
+    """
+    
+    def __init__(self, model_path=None):
+        """
+        Initialize the gloss translator.
+        
+        Args:
+            model_path (str, optional): Path to custom model (not used in basic version)
+        """
+        self.model_path = model_path
+        print("GlossTranslator initialized (using rule-based conversion)")
+    
+    def translate(self, text):
+        """
+        Translate English text to gloss format.
+        
+        Args:
+            text (str): English text to translate
+        
+        Returns:
+            str: Gloss format translation
+        """
+        return translate_to_gloss_format(text)
+
+
 def load_gloss_model():
     """
     Load the gloss translation model.
@@ -56,13 +84,66 @@ def translate_to_gloss_format(text):
         model, tokenizer = load_gloss_model()
         
         if model is None:
-            # Placeholder translation until gloss_translator is available
-            # Convert to uppercase and basic simplification
+            # Enhanced placeholder translation with basic sign language conventions
             gloss_text = text.upper()
+            
+            # Remove punctuation except periods for sentence boundaries
             gloss_text = gloss_text.replace("'", "")
+            gloss_text = gloss_text.replace('"', '')
+            gloss_text = gloss_text.replace(',', '')
+            gloss_text = gloss_text.replace('!', '.')
+            gloss_text = gloss_text.replace('?', '.')
+            
+            # Common contractions and simplifications
+            replacements = {
+                "I'M": "I",
+                "YOU'RE": "YOU",
+                "HE'S": "HE",
+                "SHE'S": "SHE",
+                "IT'S": "IT",
+                "WE'RE": "WE",
+                "THEY'RE": "THEY",
+                "ISN'T": "NOT",
+                "AREN'T": "NOT",
+                "WASN'T": "NOT",
+                "WEREN'T": "NOT",
+                "DON'T": "NOT",
+                "DOESN'T": "NOT",
+                "DIDN'T": "NOT",
+                "WON'T": "WILL NOT",
+                "CAN'T": "CANNOT",
+                "I AM": "I",
+                "YOU ARE": "YOU",
+                "HE IS": "HE",
+                "SHE IS": "SHE",
+                "IT IS": "IT",
+                "WE ARE": "WE",
+                "THEY ARE": "THEY",
+                " THE ": " ",
+                " A ": " ",
+                " AN ": " ",
+                " TO ": " ",
+                " OF ": " ",
+                " FOR ": " ",
+                " AND ": " ",
+                " OR ": " ",
+                " BUT ": " ",
+            }
+            
+            for old, new in replacements.items():
+                gloss_text = gloss_text.replace(old, new)
+            
+            # Clean up extra spaces
             gloss_text = ' '.join(gloss_text.split())
             
-            return f"[GLOSS TRANSLATION - PLACEHOLDER MODE]\n\n{gloss_text}\n\n[Note: Install gloss_translator for accurate translations]"
+            # Add line breaks for readability (max 10 words per line)
+            words = gloss_text.split()
+            lines = []
+            for i in range(0, len(words), 10):
+                lines.append(' '.join(words[i:i+10]))
+            gloss_text = '\n'.join(lines)
+            
+            return f"[GLOSS FORMAT - SIMPLIFIED]\n\n{gloss_text}\n\n[Note: This is a basic conversion. Install gloss_translator package for accurate ASL translations]"
         
         # Use actual gloss translator
         gloss_translation = model.translate(text)
