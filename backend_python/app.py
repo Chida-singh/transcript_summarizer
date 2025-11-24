@@ -131,23 +131,32 @@ def get_transcript():
         
         print(f'Fetching transcript for video: {video_id}')
         
-        # Try youtube-transcript-api first (faster)
+        # Try multiple methods to fetch transcript
         transcript_list = None
+        method_used = None
+        
+        # Method 1: Try youtube-transcript-api first (faster)
         try:
             transcript_list = YouTubeTranscriptApi.get_transcript(video_id)
-            print('✅ Transcript fetched using youtube-transcript-api')
+            method_used = 'youtube-transcript-api'
+            print(f'✅ Transcript fetched using {method_used}')
         except Exception as e:
             print(f'youtube-transcript-api failed: {str(e)}')
-            # Fallback to yt-dlp
+            
+            # Method 2: Fallback to yt-dlp
             print('Trying yt-dlp as fallback...')
-            transcript_list = fetch_transcript_ytdlp(video_id)
-            if transcript_list:
-                print('✅ Transcript fetched using yt-dlp')
+            try:
+                transcript_list = fetch_transcript_ytdlp(video_id)
+                if transcript_list:
+                    method_used = 'yt-dlp'
+                    print(f'✅ Transcript fetched using {method_used}')
+            except Exception as e2:
+                print(f'yt-dlp also failed: {str(e2)}')
         
-        if not transcript_list:
+        if not transcript_list or len(transcript_list) == 0:
             return jsonify({
                 'error': 'Transcript not found',
-                'message': 'No transcript/captions available for this video'
+                'message': 'No transcript/captions available for this video. Make sure the video has captions enabled.'
             }), 404
         
         # Format transcript
@@ -156,7 +165,7 @@ def get_transcript():
             formatted_transcript.append({
                 'index': idx + 1,
                 'timestamp': int(segment['start'] * 1000),  # Convert to milliseconds
-                'duration': int(segment['duration'] * 1000),
+                'duration': int(segment.get('duration', 0) * 1000),
                 'text': segment['text']
             })
         
@@ -166,6 +175,7 @@ def get_transcript():
             'success': True,
             'videoId': video_id,
             'url': url,
+            'method': method_used,
             'transcript': {
                 'full': full_transcript,
                 'segments': formatted_transcript,
@@ -193,9 +203,11 @@ def get_transcript():
     
     except Exception as e:
         print(f'Error fetching transcript: {str(e)}')
+        import traceback
+        traceback.print_exc()
         return jsonify({
             'error': 'Internal server error',
-            'message': f'Failed to fetch transcript: {str(e)}'
+            'message': f'Failed to fetch transcript. The video may not have captions available.'
         }), 500
 
 @app.route('/api/check', methods=['POST'])
@@ -220,13 +232,25 @@ def check_transcript():
             }), 400
         
         # Try to fetch transcript to check availability
-        transcript_list = YouTubeTranscriptApi.get_transcript(video_id)
+        try:
+            transcript_list = YouTubeTranscriptApi.get_transcript(video_id)
+            has_transcript = True
+            segment_count = len(transcript_list)
+        except:
+            # Try yt-dlp fallback
+            try:
+                transcript_list = fetch_transcript_ytdlp(video_id)
+                has_transcript = transcript_list is not None and len(transcript_list) > 0
+                segment_count = len(transcript_list) if has_transcript else 0
+            except:
+                has_transcript = False
+                segment_count = 0
         
         return jsonify({
-            'success': True,
+            'success': has_transcript,
             'videoId': video_id,
-            'hasTranscript': True,
-            'segmentCount': len(transcript_list)
+            'hasTranscript': has_transcript,
+            'segmentCount': segment_count
         })
     
     except Exception as e:
