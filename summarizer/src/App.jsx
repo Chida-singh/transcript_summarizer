@@ -18,14 +18,19 @@ function App() {
     setTranscript('')
 
     try {
+      const controller = new AbortController()
+      const timeoutId = setTimeout(() => controller.abort(), 60000) // 60 second timeout
+
       const response = await fetch('http://localhost:3000/api/transcript', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({ url: videoLink }),
+        signal: controller.signal
       })
 
+      clearTimeout(timeoutId)
       const data = await response.json()
 
       if (!response.ok) {
@@ -39,7 +44,11 @@ function App() {
       }
       
     } catch (err) {
-      setError(err.message || 'Failed to fetch transcript. Please check the link and try again.')
+      if (err.name === 'AbortError') {
+        setError('Request timed out. The video might be too long or the server is busy. Please try again.')
+      } else {
+        setError(err.message || 'Failed to fetch transcript. Please check the link and try again.')
+      }
     } finally {
       setLoading(false)
     }
@@ -120,6 +129,7 @@ function App() {
           <div className="loading-section">
             <div className="spinner"></div>
             <p>Fetching transcript...</p>
+            <p className="loading-note">This may take up to 60 seconds for longer videos</p>
           </div>
         )}
       </main>

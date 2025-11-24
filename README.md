@@ -6,21 +6,23 @@ A modern web application for fetching, analyzing, and summarizing YouTube video 
 
 ```
 transcript_summarizer/
-├── backend/              # Node.js/Express API server
-│   ├── server.js        # Main server file
-│   ├── package.json     # Backend dependencies
-│   ├── .env             # Environment variables
-│   ├── test-api.js      # API test script
-│   └── README.md        # Backend documentation
+├── backend_python/          # Python Flask API server ⭐ ACTIVE
+│   ├── app.py              # Main Flask application
+│   ├── requirements.txt    # Python dependencies
+│   ├── test_api.py         # API test script
+│   └── README.md           # Backend documentation
 │
-└── summarizer/          # React frontend application
+├── backend/                # Node.js backend (deprecated)
+│   └── ...                 # Original Node implementation
+│
+└── summarizer/             # React frontend application
     ├── src/
-    │   ├── App.jsx      # Main application component
-    │   ├── App.css      # Application styles
-    │   ├── main.jsx     # React entry point
-    │   └── index.css    # Global styles
-    ├── package.json     # Frontend dependencies
-    └── vite.config.js   # Vite configuration
+    │   ├── App.jsx         # Main application component
+    │   ├── App.css         # Application styles
+    │   ├── main.jsx        # React entry point
+    │   └── index.css       # Global styles
+    ├── package.json        # Frontend dependencies
+    └── vite.config.js      # Vite configuration
 ```
 
 ## 🚀 Getting Started
@@ -29,19 +31,29 @@ transcript_summarizer/
 
 1. Navigate to the backend directory:
 ```bash
-cd backend
+cd backend_python
 ```
 
-2. Install dependencies:
+2. Create and activate virtual environment:
 ```bash
-npm install
+# Create venv
+python -m venv venv
+
+# Activate (Windows)
+venv\Scripts\activate
+
+# Activate (Mac/Linux)
+source venv/bin/activate
 ```
 
-3. Start the server:
+3. Install dependencies:
 ```bash
-npm start
-# or
-node server.js
+pip install -r requirements.txt
+```
+
+4. Start the server:
+```bash
+python app.py
 ```
 
 The backend will run on `http://localhost:3000`
@@ -67,14 +79,15 @@ The frontend will run on `http://localhost:5174` (or similar)
 
 ## ✨ Current Features
 
-### Backend (✅ Complete)
-- ✅ Express.js REST API server
-- ✅ YouTube transcript fetching
+### Backend (✅ Complete - Python/Flask)
+- ✅ Flask REST API server
+- ✅ YouTube transcript fetching (no API key)
 - ✅ Multiple YouTube URL format support
 - ✅ Structured transcript data with timestamps
 - ✅ Comprehensive error handling
 - ✅ CORS enabled for frontend integration
 - ✅ Health check endpoint
+- ✅ Ready for ML/AI integration
 
 ### Frontend (✅ Complete)
 - ✅ Modern React application with Vite
@@ -112,11 +125,11 @@ The frontend will run on `http://localhost:5174` (or similar)
 ## 🔧 Tech Stack
 
 ### Backend
-- Node.js
-- Express.js
-- youtube-transcript library
-- CORS
-- dotenv
+- Python 3.12+
+- Flask
+- flask-cors
+- youtube-transcript-api
+- python-dotenv
 
 ### Frontend
 - React 19
@@ -153,8 +166,8 @@ Fetch transcript from a YouTube video URL.
 
 Test the backend API:
 ```bash
-cd backend
-node test-api.js
+cd backend_python
+python test_api.py
 ```
 
 ## 🌟 How to Use
